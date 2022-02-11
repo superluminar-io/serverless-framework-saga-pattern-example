@@ -1,0 +1,187 @@
+service: serverless-framework-saga-example
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  region: eu-central-1
+
+plugins:
+  - serverless-step-functions
+
+functions:
+  processPayment:
+    handler: src/processPayment.handler
+
+stepFunctions:
+  stateMachines:
+    processOrder:
+      events:
+        - http:
+            path: order
+            method: POST
+      definition:
+        StartAt: CreateOrder
+        States:
+          CreateOrder:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:putItem
+            Parameters:
+              TableName: !Ref OrderTable
+              Item:
+                orderId: 
+                  S.$: "$$.Execution.Name"
+                createdAt:
+                  S.$: "$$.Execution.StartTime"
+                firstname: 
+                  S.$: "$.firstname"
+                surname: 
+                  S.$: "$.surname"
+                street:
+                  S.$: "$.street"
+                zip:
+                  S.$: "$.zip"
+                city:
+                  S.$: "$.city"
+                itemId:
+                  S.$: "$.itemId"
+                quantity:
+                  N.$: "$.quantity"
+                status:
+                  S: "ORDER_RECEIVED"
+            ResultPath: "$.createOrderResult"
+            Next: ReserveItem
+
+          ReserveItem:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:updateItem
+            Parameters:
+              TableName: !Ref StockTable
+              Key:
+                itemId:
+                  S.$: "$.itemId"
+              UpdateExpression: "SET #quantity = #quantity - :decrease"
+              ConditionExpression: "#quantity >= :decrease"
+              ExpressionAttributeNames:
+                "#quantity": quantity
+              ExpressionAttributeValues:
+                ":decrease":
+                  N.$: "$.quantity"
+            ResultPath: "$.reserveItemResult"
+            Next: ProcessPayment
+            Catch:
+              - ErrorEquals: [ States.ALL ]
+                Next: CancelOrder
+                ResultPath: "$.reserveItemResult"
+
+          CancelOrder:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:updateItem
+            Parameters:
+              TableName: !Ref OrderTable
+              Key:
+                orderId:
+                  S.$: "$$.Execution.Name"
+                createdAt:
+                  S.$: "$$.Execution.StartTime"
+              UpdateExpression: "SET #status = :status"
+              ExpressionAttributeNames:
+                "#status": status
+              ExpressionAttributeValues:
+                ":status":
+                  S: "ORDER_CANCELLED"
+            ResultPath: "$.cancelOrderResult"
+            End: true
+
+          ProcessPayment:
+            Type: Task
+            Resource:
+              Fn::GetAtt: [processPayment, Arn]
+            ResultPath: "$.processPaymentResult"
+            Next: ConfirmOrder
+            Catch:
+              - ErrorEquals: [ States.ALL ]
+                Next: CancelReservation
+                ResultPath: "$.processPaymentResult"
+          
+          ConfirmOrder:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:updateItem
+            Parameters:
+              TableName: !Ref OrderTable
+              Key:
+                orderId:
+                  S.$: "$$.Execution.Name"
+                createdAt:
+                  S.$: "$$.Execution.StartTime"
+              UpdateExpression: "SET #status = :status"
+              ExpressionAttributeNames:
+                "#status": status
+              ExpressionAttributeValues:
+                ":status":
+                  S: "ORDER_PROCESSED"
+            ResultPath: "$.confirmOrderResult"
+            End: true
+            Catch:
+              - ErrorEquals: [ States.ALL ]
+                Next: RefundPayment
+                ResultPath: "$.confirmOrderResult"
+          
+          CancelReservation:
+            Type: Task
+            Resource: arn:aws:states:::dynamodb:updateItem
+            Parameters:
+              TableName: !Ref StockTable
+              Key:
+                itemId:
+                  S.$: "$.itemId"
+              UpdateExpression: "SET #quantity = #quantity + :increase"
+              ExpressionAttributeNames:
+                "#quantity": quantity
+              ExpressionAttributeValues:
+                ":increase":
+                  N.$: "$.quantity"
+            ResultPath: "$.cancelReservationResult"
+            Next: CancelOrder
+
+          # To keep the example simple, we just simulate refunding here
+          RefundPayment:
+            Type: Pass
+            ResultPath: "$.refundPaymentResult"
+            Next: CancelReservation
+
+      dependsOn: 
+        - OrderTable
+        - StockTable
+
+resources:
+  Resources:
+    OrderTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: orderId
+            AttributeType: S
+          - AttributeName: createdAt
+            AttributeType: S
+        KeySchema:
+          - AttributeName: orderId
+            KeyType: HASH
+          - AttributeName: createdAt
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+    
+    StockTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: itemId
+            AttributeType: S
+        KeySchema:
+          - AttributeName: itemId
+            KeyType: HASH
+        BillingMode: PAY_PER_REQUEST
+  
+  Outputs:
+    StockTableName:
+      Value: !Ref StockTable

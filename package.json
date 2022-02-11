@@ -1,0 +1,16 @@
+{
+  "name": "serverless-framework-saga-example",
+  "version": "1.0.0",
+  "description": "Serverless Framework + DynamoDB + Step Functions = Saga Pattern",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "deploy": "serverless deploy",
+    "remove": "serverless remoev"
+  },
+  "author": "Henrik Fricke <henrik.fricke@superluminar.io>",
+  "license": "MIT",
+  "devDependencies": {
+    "serverless": "^3.2.0",
+    "serverless-step-functions": "^3.5.1"
+  }
+}
