@@ -1,5 +1,5 @@
-# Serverless Framework Saga Example
-> This example demonstrates a simple [saga pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/implement-the-serverless-saga-pattern-by-using-aws-step-functions.html) using AWS Step Functions and DynamoDB.
+# Serverless Framework Saga Pattern Example
+> This example demonstrates a simple [saga pattern](https://docs.aws.amazon.com/prescriptive-guidance/latest/patterns/implement-the-serverless-saga-pattern-by-using-aws-step-functions.html) using AWS Step Functions and DynamoDB
 
 ## Architecture
 
