@@ -3,7 +3,7 @@
 
 ## Architecture
 
-![state machine defintion](./docs/achitecture.svg)
+![state machine defintion](./docs/architecture.svg)
 
 ### Execution Input
 
@@ -28,6 +28,8 @@
 5. **RefundPayment**: Simple task to simulate refunding. There is no implementation in place to actually refund payments.
 6. **CancelReservation**: Increase the number of items in stock.
 7. **CancelOrder**: Change the status of the order to `CANCELLED`.
+8. **EmitSuccessEvent**: Put an event to an event bus using AWS EventBridge.
+9. **EmitFailureEvent**: Put an event to an event bus using AWS EventBridge.
 
 ## Usage
 

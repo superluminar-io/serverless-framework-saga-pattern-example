@@ -13,6 +13,28 @@ functions:
   processPayment:
     handler: src/processPayment.handler
 
+  handleSuccessEvent:
+   handler: src/handleSuccessEvent.handler
+   events:
+     - eventBridge:
+        eventBus: !Ref EventBus
+        pattern:
+          source:
+            - superluminar.store.order
+          detail-type:
+            - Processed
+
+  handleFailureEvent:
+   handler: src/handleFailureEvent.handler
+   events:
+     - eventBridge:
+        eventBus: !Ref EventBus
+        pattern:
+          source:
+            - superluminar.store.order
+          detail-type:
+            - Cancelled
+
 stepFunctions:
   stateMachines:
     processOrder:
@@ -91,7 +113,7 @@ stepFunctions:
                 ":status":
                   S: "ORDER_CANCELLED"
             ResultPath: "$.cancelOrderResult"
-            End: true
+            Next: EmitFailureEvent
 
           ProcessPayment:
             Type: Task
@@ -121,7 +143,7 @@ stepFunctions:
                 ":status":
                   S: "ORDER_PROCESSED"
             ResultPath: "$.confirmOrderResult"
-            End: true
+            Next: EmitSuccessEvent
             Catch:
               - ErrorEquals: [ States.ALL ]
                 Next: RefundPayment
@@ -149,6 +171,32 @@ stepFunctions:
             Type: Pass
             ResultPath: "$.refundPaymentResult"
             Next: CancelReservation
+
+          EmitSuccessEvent:
+            Type: Task
+            Resource: arn:aws:states:::events:putEvents
+            Parameters:
+              Entries:
+                - Source: superluminar.store.order
+                  DetailType: 'Processed'
+                  EventBusName: !Ref EventBus
+                  Detail:
+                    OrderId.$: "$$.Execution.Name"
+                    CreatedAt.$: "$$.Execution.StartTime"
+            End: true
+
+          EmitFailureEvent:
+            Type: Task
+            Resource: arn:aws:states:::events:putEvents
+            Parameters:
+              Entries:
+                - Source: superluminar.store.order
+                  DetailType: 'Cancelled'
+                  EventBusName: !Ref EventBus
+                  Detail:
+                    OrderId.$: "$$.Execution.Name"
+                    CreatedAt.$: "$$.Execution.StartTime"
+            End: true
 
       dependsOn: 
         - OrderTable
@@ -181,6 +229,11 @@ resources:
           - AttributeName: itemId
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
+
+    EventBus:
+      Type: AWS::Events::EventBus
+      Properties:
+        Name: Store
   
   Outputs:
     StockTableName:
