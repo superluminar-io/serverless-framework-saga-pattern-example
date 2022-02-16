@@ -53,9 +53,11 @@ stepFunctions:
                     NumericLessThan: 10
                 Next: CreateOrder
             Default: DoNothing
+
           DoNothing:
             Type: Pass
             End: true
+
           CreateOrder:
             Type: Task
             Resource: arn:aws:states:::dynamodb:putItem
