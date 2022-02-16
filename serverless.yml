@@ -17,7 +17,6 @@ functions:
    handler: src/handleSuccessEvent.handler
    events:
      - eventBridge:
-        eventBus: !Ref EventBus
         pattern:
           source:
             - superluminar.store.order
@@ -28,7 +27,6 @@ functions:
    handler: src/handleFailureEvent.handler
    events:
      - eventBridge:
-        eventBus: !Ref EventBus
         pattern:
           source:
             - superluminar.store.order
@@ -179,7 +177,6 @@ stepFunctions:
               Entries:
                 - Source: superluminar.store.order
                   DetailType: 'Processed'
-                  EventBusName: !Ref EventBus
                   Detail:
                     OrderId.$: "$$.Execution.Name"
                     CreatedAt.$: "$$.Execution.StartTime"
@@ -192,7 +189,6 @@ stepFunctions:
               Entries:
                 - Source: superluminar.store.order
                   DetailType: 'Cancelled'
-                  EventBusName: !Ref EventBus
                   Detail:
                     OrderId.$: "$$.Execution.Name"
                     CreatedAt.$: "$$.Execution.StartTime"
@@ -229,11 +225,6 @@ resources:
           - AttributeName: itemId
             KeyType: HASH
         BillingMode: PAY_PER_REQUEST
-
-    EventBus:
-      Type: AWS::Events::EventBus
-      Properties:
-        Name: Store
   
   Outputs:
     StockTableName:
