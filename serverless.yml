@@ -46,8 +46,11 @@ stepFunctions:
           IsValidRequest?:
             Type: Choice
             Choices:
-              - Variable: "$.quantity"
-                NumericGreaterThanEquals: 0
+              - And:
+                  - Variable: "$.quantity"
+                    NumericGreaterThanEquals: 1
+                  - Variable: "$.quantity"
+                    NumericLessThan: 10
                 Next: CreateOrder
             Default: DoNothing
           DoNothing:
