@@ -41,8 +41,18 @@ stepFunctions:
             path: order
             method: POST
       definition:
-        StartAt: CreateOrder
+        StartAt: IsValidRequest?
         States:
+          IsValidRequest?:
+            Type: Choice
+            Choices:
+              - Variable: "$.quantity"
+                NumericGreaterThanEquals: 0
+                Next: CreateOrder
+            Default: DoNothing
+          DoNothing:
+            Type: Pass
+            End: true
           CreateOrder:
             Type: Task
             Resource: arn:aws:states:::dynamodb:putItem
@@ -66,7 +76,7 @@ stepFunctions:
                 itemId:
                   S.$: "$.itemId"
                 quantity:
-                  N.$: "$.quantity"
+                  N.$: States.Format('{}', $.quantity)
                 status:
                   S: "ORDER_RECEIVED"
             ResultPath: "$.createOrderResult"
@@ -86,7 +96,7 @@ stepFunctions:
                 "#quantity": quantity
               ExpressionAttributeValues:
                 ":decrease":
-                  N.$: "$.quantity"
+                  N.$: States.Format('{}', $.quantity)
             ResultPath: "$.reserveItemResult"
             Next: ProcessPayment
             Catch:
@@ -160,7 +170,7 @@ stepFunctions:
                 "#quantity": quantity
               ExpressionAttributeValues:
                 ":increase":
-                  N.$: "$.quantity"
+                  N.$: States.Format('{}', $.quantity)
             ResultPath: "$.cancelReservationResult"
             Next: CancelOrder
 
